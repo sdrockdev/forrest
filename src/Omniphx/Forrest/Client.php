@@ -194,7 +194,13 @@ abstract class Client
         }
 
         if (isset($this->options['body'])) {
-            $this->parameters['body'] = $this->formatter->setBody($this->options['body']);
+            if ($this->parameters['headers']['Content-Type'] == $this->formatter->getDefaultMIMEType()) {
+                $this->parameters['body'] = $this->formatter->setBody($this->options['body']);
+            } else {
+                $this->parameters['body'] = $this->options['body'];
+            }
+        } else {
+            unset($this->parameters['body']);
         }
 
         try {
@@ -365,10 +371,11 @@ abstract class Client
     public function identity($options = [])
     {
         $token = $this->tokenRepo->get();
-        $accessToken = $token['access_token'];
         $url = $token['id'];
+        $accessToken = $token['access_token'];
+        $tokenType = $token['token_type'];
 
-        $options['headers']['Authorization'] = "OAuth $accessToken";
+        $options['headers']['Authorization'] = "$tokenType $accessToken";
 
         $identity = $this->request($url, $options);
 
@@ -398,14 +405,15 @@ abstract class Client
      * Describes all global objects available in the organization.
      *
      * @param string $object_name
-     * @param array $options
+     * @param array  $options
+     *
      * @return array
      */
     public function describe($object_name = null, $options = [])
     {
         $url = sprintf('%s/sobjects', $this->getBaseUrl());
-        
-        if ( ! empty($object_name)) {
+
+        if (!empty($object_name)) {
             $url .= sprintf('/%s/describe', $object_name);
         }
 
@@ -733,8 +741,8 @@ abstract class Client
     {
         $versions = $this->versions();
 
-        $this->storeConfiguredVersion($versions);
         $this->storeLatestVersion($versions);
+        $this->storeConfiguredVersion($versions);
     }
 
     private function storeConfiguredVersion($versions)
@@ -789,10 +797,12 @@ abstract class Client
      */
     private function assignExceptions(RequestException $ex)
     {
-        if ($ex->hasResponse() && $ex->getResponse()->getStatusCode() == 401) {
+        if ($ex->hasResponse() && 401 == $ex->getResponse()->getStatusCode()) {
             throw new TokenExpiredException('Salesforce token has expired', $ex);
         } elseif ($ex->hasResponse()) {
-            throw new SalesforceException('Salesforce response error: '.$ex->getMessage(), $ex);
+            $error = json_decode($ex->getResponse()->getBody(), true);
+            $jsonError = json_encode($error,JSON_PRETTY_PRINT);
+            throw new SalesforceException($jsonError, $ex);
         } else {
             throw new SalesforceException('Invalid request: %s', $ex);
         }

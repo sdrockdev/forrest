@@ -19,7 +19,7 @@ use Prophecy\Argument;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-class UserPasswordSpec extends ObjectBehavior
+class UserPasswordSoapSpec extends ObjectBehavior
 {
     protected $versionJSON = '[
         {
@@ -57,14 +57,25 @@ class UserPasswordSpec extends ObjectBehavior
         ]
     ];
 
-    protected $authenticationJSON = '{
-        "access_token": "00Do0000000secret",
-        "id": "https://login.salesforce.com/id/00Do0000000xxxxx/005o0000000xxxxx",
-        "instance_url": "https://na17.salesforce.com",
-        "issued_at": "1447000236011",
-        "signature": "secretsig",
-        "token_type": "Bearer"
-    }';
+    protected $token = [
+        "signature" => "SOAPHasNoSecretSig",
+        "id" => "https://login.salesforce.com/id/00Do0000000xxxxx/005o0000000xxxxx",
+        "access_token" => "00Do0000000secret",
+        "token_type" => "Bearer",
+        "instance_url" => "https://instance.salesforce.com"
+        ];
+
+    protected $authenticationJSON = [
+        "signature" => "SOAPHasNoSecretSig",
+        "id" => "https://login.salesforce.com/id/00Do0000000xxxxx/005o0000000xxxxx",
+        "access_token" => "00Do0000000secret",
+        "token_type" => "Bearer",
+        "instance_url" => "https://instance.salesforce.com"
+        ];
+
+    protected $failedAuthenticationXML = '<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sf="urn:fault.partner.soap.sforce.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><soapenv:Fault><faultcode>sf:INVALID_LOGIN</faultcode><faultstring>INVALID_LOGIN: Invalid username, password, security token; or user locked out.</faultstring><detail><sf:LoginFault xsi:type="sf:LoginFault"><sf:exceptionCode>INVALID_LOGIN</sf:exceptionCode><sf:exceptionMessage>Invalid username, password, security token; or user locked out.</sf:exceptionMessage></sf:LoginFault></detail></soapenv:Fault></soapenv:Body></soapenv:Envelope>';
+
+    protected $authenticationXML = '<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="urn:partner.soap.sforce.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><soapenv:Body><loginResponse><result><metadataServerUrl>https://instance.salesforce.com/services/Soap/m/46.0/00000000000uXgY</metadataServerUrl><passwordExpired>false</passwordExpired><sandbox>false</sandbox><serverUrl>https://instance.salesforce.com/services/Soap/u/46.0/00D36000000uXgY</serverUrl><sessionId>00Do0000000secret</sessionId><userId>005o0000000xxxxx</userId><userInfo><accessibilityMode>false</accessibilityMode><currencySymbol>$</currencySymbol><orgAttachmentFileSizeLimit>5242880</orgAttachmentFileSizeLimit><orgDefaultCurrencyIsoCode>USD</orgDefaultCurrencyIsoCode><orgDisallowHtmlAttachments>false</orgDisallowHtmlAttachments><orgHasPersonAccounts>false</orgHasPersonAccounts><organizationId>00Do0000000xxxxx</organizationId><organizationMultiCurrency>false</organizationMultiCurrency><organizationName>The Organization Name</organizationName><profileId>00000000000000CAA4</profileId><roleId>00E36000000000000C</roleId><sessionSecondsValid>7200</sessionSecondsValid><userDefaultCurrencyIsoCode xsi:nil="true"/><userEmail>user@email.com</userEmail><userFullName>John Doe</userFullName><userId>005o0000000xxxxx</userId><userLanguage>en_US</userLanguage><userLocale>en_US</userLocale><userName>user@email.com</userName><userTimeZone>Pacific/Honolulu</userTimeZone><userType>Standard</userType><userUiSkin>Theme3</userUiSkin></userInfo></result></loginResponse></soapenv:Body></soapenv:Envelope>';
 
     protected $responseXML = '
         <meseek>
@@ -73,18 +84,10 @@ class UserPasswordSpec extends ObjectBehavior
             <solution>Have you tried squring your shoulders, Gary?</solution>
         </meseek>';
 
-    protected $token = [
-        'access_token' => '00Do0000000secret',
-        'instance_url' => 'https://na17.salesforce.com',
-        'id'           => 'https://login.salesforce.com/id/00Do0000000xxxxx/005o0000000xxxxx',
-        'token_type'   => 'Bearer',
-        'issued_at'    => '1447000236011',
-        'signature'    => 'secretsig'];
-
     protected $decodedResponse = ['foo' => 'bar'];
 
     protected $settings = [
-        'authenticationFlow' => 'UserPassword',
+        'authenticationFlow' => 'UserPasswordSoap',
         'credentials' => [
             'consumerKey'    => 'testingClientId',
             'consumerSecret' => 'testingClientSecret',
@@ -151,20 +154,18 @@ class UserPasswordSpec extends ObjectBehavior
 
         $mockedFormatter->setBody(Argument::any())->willReturn(null);
         $mockedFormatter->setHeaders()->willReturn([
-            'Authorization' => 'Oauth accessToken',
+            'Authorization' => 'Bearer accessToken',
             'Accept'        => 'application/json',
             'Content-Type'  => 'application/json',
         ]);
         $mockedFormatter->getDefaultMIMEType()->willReturn('application/json');
-
         $mockedVersionRepo->get()->willReturn(['url' => '/resources']);
-
         $mockedFormatter->formatResponse($mockedResponse)->willReturn(['foo' => 'bar']);
     }
 
     public function it_is_initializable()
     {
-        $this->shouldHaveType('Omniphx\Forrest\Authentications\UserPassword');
+        $this->shouldHaveType('Omniphx\Forrest\Authentications\UserPasswordSoap');
     }
 
     public function it_should_authenticate(
@@ -176,14 +177,12 @@ class UserPasswordSpec extends ObjectBehavior
     {
         $mockedHttpClient->request(
             'post',
-            'url/services/oauth2/token',
-            ['form_params' => [
-                'grant_type'    => 'password',
-                'client_id'     => 'testingClientId',
-                'client_secret' => 'testingClientSecret',
-                'username'      => 'user@email.com',
-                'password'      => 'mypassword'
-            ]])
+            'url/services/Soap/u/46.0',
+            ["http_errors" => false,
+                "headers" =>
+                    ["Content-Type" => "text/xml; charset=UTF-8",
+                    "SOAPAction" => "login"],
+                "body" => '<?xml version="1.0" encoding="utf-8" ?><env:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:env="http://schemas.xmlsoap.org/soap/envelope/"><env:Body><n1:login xmlns:n1="urn:partner.soap.sforce.com"><n1:username>user@email.com</n1:username><n1:password>mypassword</n1:password></n1:login></env:Body></env:Envelope>'])
             ->shouldBeCalled()
             ->willReturn($mockedResponse);
 
@@ -191,20 +190,20 @@ class UserPasswordSpec extends ObjectBehavior
             'get',
             'https://instance.salesforce.com/resources',
             ['headers' => [
-                'Authorization' => 'Oauth accessToken',
+                'Authorization' => 'Bearer accessToken',
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json'
             ]])
             ->shouldBeCalled()
             ->willReturn($mockedResponse);
 
-        $mockedResponse->getBody()->shouldBeCalled()->willReturn($this->authenticationJSON);
+        $mockedResponse->getBody()->shouldBeCalled()->willReturn($this->authenticationXML);
 
         $mockedHttpClient->request(
             'get',
             'https://instance.salesforce.com/services/data',
             ['headers' => [
-                'Authorization' => 'Oauth accessToken',
+                'Authorization' => 'Bearer accessToken',
                 'Accept'        => 'application/json',
                 'Content-Type'  => 'application/json'
             ]])
@@ -217,25 +216,7 @@ class UserPasswordSpec extends ObjectBehavior
         $mockedVersionRepo->put(["label" => "Winter 16", "url" => "/services/data/v35.0", "version" => "35.0"])->shouldBeCalled();
 
         $this->authenticate('url')->shouldReturn(null);
-    }
 
-    public function it_should_refresh(ClientInterface $mockedHttpClient, ResponseInterface $mockedResponse)
-    {
-        $mockedHttpClient->request(
-            'post',
-            'https://login.salesforce.com/services/oauth2/token',
-            ['form_params' => [
-                'grant_type'    => 'password',
-                'client_id'     => 'testingClientId',
-                'client_secret' => 'testingClientSecret',
-                'username'      => 'user@email.com',
-                'password'      => 'mypassword']])
-            ->shouldBeCalled()
-            ->willReturn($mockedResponse);
-
-        $mockedResponse->getBody()->shouldBeCalled()->willReturn($this->authenticationJSON);
-
-        $this->refresh()->shouldReturn(null);
     }
 
     public function it_should_return_the_request(
@@ -247,59 +228,13 @@ class UserPasswordSpec extends ObjectBehavior
             'get',
             'url',
             ['headers' => [
-                'Authorization' => 'Oauth accessToken',
+                'Authorization' => 'Bearer accessToken',
                 'Accept'        => 'application/json',
                 'Content-Type'  => 'application/json']])
             ->shouldBeCalled()
             ->willReturn($mockedResponse);
 
         $this->request('url', ['key' => 'value'])->shouldReturn(['foo' => 'bar']);
-    }
-
-    public function it_should_refresh_the_token_if_token_expired_exception_is_thrown(
-        ClientInterface $mockedHttpClient,
-        RequestInterface $mockedRequest,
-        ResponseInterface $mockedResponse)
-    {
-        $failedRequest = new Request('GET', 'fakeurl');
-        $failedResponse = new Response(401);
-        $requestException = new RequestException('Salesforce token has expired', $failedRequest, $failedResponse);
-
-        //First request throws an exception
-        $mockedHttpClient->request('get', 'url', ['headers' => ['Authorization' => 'Oauth accessToken', 'Accept' => 'application/json', 'Content-Type' => 'application/json']])->shouldBeCalled(1)->willThrow($requestException);
-
-        //Authenticates with refresh method
-        $mockedHttpClient->request('post', 'https://login.salesforce.com/services/oauth2/token', ['form_params' => ['grant_type' => 'password', 'client_id' => 'testingClientId', 'client_secret' => 'testingClientSecret', 'username' => 'user@email.com', 'password' => 'mypassword']])->shouldBeCalled()->willReturn($mockedResponse);
-
-        $mockedResponse->getBody()->shouldBeCalled(1)->willReturn($this->authenticationJSON);
-
-        //This might seem counter-intuitive. We are throwing an exception with the send() method, but we can't stop it. Since we are calling the send() method twice, the behavior is correct for it to throw an exception. Actual behavior would never throw the exception, it would return a response.
-        $tokenException = new TokenExpiredException(
-            'Salesforce token has expired',
-            $requestException);
-
-        //Here we will handle a 401 exception and convert it to a TokenExpiredException
-        $this->shouldThrow($tokenException)->duringRequest('url', ['key' => 'value']);
-    }
-
-    public function it_should_revoke_the_authentication_token(
-        ClientInterface $mockedHttpClient,
-        ResponseInterface $mockedResponse)
-    {
-        $mockedHttpClient->request(
-            'post',
-            'https://login.salesforce.com/services/oauth2/revoke',
-            [
-                'headers' => [
-                    'content-type' => 'application/x-www-form-urlencoded'
-                ],
-                'form_params' => [
-                    'token' => $this->token
-                ]
-            ])
-            ->shouldBeCalled()
-            ->willReturn($mockedResponse);
-        $this->revoke()->shouldReturn($mockedResponse);
     }
 
     /*
@@ -313,7 +248,7 @@ class UserPasswordSpec extends ObjectBehavior
         ResponseInterface $mockedResponse,
         FormatterInterface $mockedFormatter)
     {
-        $mockedHttpClient->request('get', 'https://instance.salesforce.com/services/data', ['headers' => ['Authorization' => 'Oauth accessToken', 'Accept' => 'application/json', 'Content-Type' => 'application/json']])->shouldBeCalled()->willReturn($mockedResponse);
+        $mockedHttpClient->request('get', 'https://instance.salesforce.com/services/data', ['headers' => ['Authorization' => 'Bearer accessToken', 'Accept' => 'application/json', 'Content-Type' => 'application/json']])->shouldBeCalled()->willReturn($mockedResponse);
 
         $versionArray = json_decode($this->versionJSON, true);
 
@@ -327,7 +262,7 @@ class UserPasswordSpec extends ObjectBehavior
         ResponseInterface $mockedResponse,
         FormatterInterface $mockedFormatter)
     {
-        $mockedHttpClient->request('get', 'https://instance.salesforce.com/resources', ['headers' => ['Authorization' => 'Oauth accessToken', 'Accept' => 'application/json', 'Content-Type' => 'application/json']])->shouldBeCalled()->willReturn($mockedResponse);
+        $mockedHttpClient->request('get', 'https://instance.salesforce.com/resources', ['headers' => ['Authorization' => 'Bearer accessToken', 'Accept' => 'application/json', 'Content-Type' => 'application/json']])->shouldBeCalled()->willReturn($mockedResponse);
 
         $mockedFormatter->formatResponse($mockedResponse)->shouldBeCalled()->willReturn($this->decodedResponse);
 
@@ -618,7 +553,7 @@ class UserPasswordSpec extends ObjectBehavior
             'uri',
             [
                 'headers' => [
-                    'Authorization' => 'Oauth accessToken',
+                    'Authorization' => 'Bearer accessToken',
                     'Accept'        => 'application/json',
                     'Content-Type'  => 'application/json',
                 ]
@@ -640,7 +575,7 @@ class UserPasswordSpec extends ObjectBehavior
             'uri',
             [
                 'headers' => [
-                    'Authorization' => 'bearer accesstoken',
+                    'Authorization' => 'bearer accessToken',
                     'Accept'        => 'application/x-www-form-urlencoded',
                     'Content-Type'  => 'application/x-www-form-urlencoded',
                 ]
@@ -649,7 +584,7 @@ class UserPasswordSpec extends ObjectBehavior
             ->willReturn($mockedResponse);
 
         $mockedFormatter->setHeaders()->shouldBeCalled()->willReturn([
-            'Authorization' => 'bearer accesstoken',
+            'Authorization' => 'bearer accessToken',
             'Accept'        => 'application/x-www-form-urlencoded',
             'Content-Type'  => 'application/x-www-form-urlencoded',
         ]);
@@ -667,7 +602,7 @@ class UserPasswordSpec extends ObjectBehavior
             'uri',
             [
                 'headers' => [
-                    'Authorization'    => 'bearer accesstoken',
+                    'Authorization'    => 'bearer accessToken',
                     'Accept'           => 'application/json',
                     'Content-Type'     => 'application/json',
                     'Accept-Encoding'  => 'gzip',
@@ -679,7 +614,7 @@ class UserPasswordSpec extends ObjectBehavior
 
 
         $mockedFormatter->setHeaders()->shouldBeCalled()->willReturn([
-            'Authorization'    => 'bearer accesstoken',
+            'Authorization'    => 'bearer accessToken',
             'Accept'           => 'application/json',
             'Content-Type'     => 'application/json',
             'Accept-Encoding'  => 'gzip',
@@ -700,7 +635,7 @@ class UserPasswordSpec extends ObjectBehavior
             'uri',
             [
                 'headers' => [
-                    'Authorization'    => 'bearer accesstoken',
+                    'Authorization'    => 'bearer accessToken',
                     'Accept'           => 'application/json',
                     'Content-Type'     => 'application/json',
                     'Accept-Encoding'  => 'deflate',
@@ -711,7 +646,7 @@ class UserPasswordSpec extends ObjectBehavior
             ->willReturn($mockedResponse);
 
         $mockedFormatter->setHeaders()->shouldBeCalled()->willReturn([
-            'Authorization'    => 'bearer accesstoken',
+            'Authorization'    => 'bearer accessToken',
             'Accept'           => 'application/json',
             'Content-Type'     => 'application/json',
             'Accept-Encoding'  => 'deflate',
@@ -801,34 +736,5 @@ class UserPasswordSpec extends ObjectBehavior
         $mockedEvent->fire('forrest.response', Argument::any())->shouldBeCalled();
 
         $this->versions();
-    }
-
-    public function it_should_not_encode_body_if_a_custom_header_is_used(
-        ClientInterface $mockedHttpClient,
-        ResponseInterface $mockedResponse,
-        FormatterInterface $mockedFormatter)
-    {
-        $mockedHttpClient->request('put',
-            'https://instance.salesforce.com/services/data/v30.0/resource/ingest/123/batches',
-            [
-                'headers' => [
-                    'Authorization'    => 'Oauth accessToken',
-                    'Accept'           => 'application/json',
-                    'Content-Type'     => 'text/csv'
-                ],
-                'body' => "id,name\r\n0010000000AAA,Rick Sanchez"
-            ])
-            ->shouldBeCalled()
-            ->willReturn($mockedResponse);
-
-        $mockedFormatter->formatResponse($mockedResponse)->shouldBeCalled()->willReturn($this->decodedResponse);
-
-        $this->jobs('ingest/123/batches', [
-            'method' => 'put',
-            'headers' => [
-                'Content-Type' => 'text/csv'
-            ],
-            'body' => "id,name\r\n0010000000AAA,Rick Sanchez"
-        ])->shouldReturn($this->decodedResponse);
     }
 }
