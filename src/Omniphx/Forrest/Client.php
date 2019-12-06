@@ -194,11 +194,7 @@ abstract class Client
         }
 
         if (isset($this->options['body'])) {
-            if ($this->parameters['headers']['Content-Type'] == $this->formatter->getDefaultMIMEType()) {
-                $this->parameters['body'] = $this->formatter->setBody($this->options['body']);
-            } else {
-                $this->parameters['body'] = $this->options['body'];
-            }
+            $this->parameters['body'] = $this->_bodyParameter();
         } else {
             unset($this->parameters['body']);
         }
@@ -214,6 +210,21 @@ abstract class Client
         $this->event->fire('forrest.response', [$formattedResponse]);
 
         return $formattedResponse;
+    }
+
+    // Added by Nick T to support use of encryption
+    protected function _bodyParameter()
+    {
+        if ( isset($this->settings['defaults']['compressionType']) &&
+            $this->settings['defaults']['compressionType'] == 'gzip' ) {
+                return gzencode( $this->formatter->setBody($this->options['body']) );
+        }
+
+        if ($this->parameters['headers']['Content-Type'] == $this->formatter->getDefaultMIMEType()) {
+            return $this->formatter->setBody($this->options['body']);
+        }
+
+        return $this->options['body'];
     }
 
     /**
