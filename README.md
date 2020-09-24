@@ -10,9 +10,7 @@
 
 
 
-Salesforce/Force.com REST API client for Laravel. While it acts as more of a wrapper of the API methods, it should provide you with all the flexibility you will need to interact with the REST service.
-
-Currently the only support is for Laravel and Lumen.
+Forrest is a Salesforce/Force.com REST API client for Laravel and Lumen.
 
 Interested in Eloquent Salesforce Models? Check out [@roblesterjr04](https://github.com/roblesterjr04)'s [EloquentSalesForce](https://github.com/roblesterjr04/EloquentSalesForce) project that utilizes Forrest as it's API layer.
 
@@ -27,7 +25,7 @@ Next run `composer update` from the command line to install the package.
 
 ### Laravel Installation
 
-Add the service provider and alias to your `config/app.php` file:
+The package will automatically register the service provider and `Forrest` alias for Laravel `>=5.5`. For earlier versions, add the service provider and alias to your `config/app.php` file:
 
 ```php
 Omniphx\Forrest\Providers\Laravel\ForrestServiceProvider::class
@@ -55,12 +53,12 @@ This will publish a `config/forrest.php` file that can switch between authentica
 
 After adding the config file, update your `.env` to include the following values (details for getting a consumer key and secret are outlined below):
 ```
-CONSUMER_KEY=123455
-CONSUMER_SECRET=ABCDEF
-CALLBACK_URI=https://test.app/callback
-LOGIN_URL=https://login.salesforce.com
-USERNAME=mattjmitchener@gmail.com
-PASSWORD=password123
+SF_CONSUMER_KEY=123455
+SF_CONSUMER_SECRET=ABCDEF
+SF_CALLBACK_URI=https://test.app/callback
+SF_LOGIN_URL=https://login.salesforce.com
+SF_USERNAME=mattjmitchener@gmail.com
+SF_PASSWORD=password123
 ```
 
 >For Lumen, you should copy the config file from `src/config/config.php` and add it to a `forrest.php` configuration file under a config directory in the root of your application.
@@ -165,33 +163,40 @@ After authentication, your app will store an encrypted authentication token whic
 Forrest::query('SELECT Id FROM Account');
 ```
 Sample result:
-```JSON
-{
-    "totalSize": 2,
-    "done": true,
-    "records": [
-        {
-            "attributes": {
-                "type": "Account",
-                "url": "\/services\/data\/v30.0\/sobjects\/Account\/001i000000xxx"
-            },
-            "Id": "001i000000xxx"
-        },
-        {
-            "attributes": {
-                "type": "Account",
-                "url": "\/services\/data\/v30.0\/sobjects\/Account\/001i000000xxx"
-            },
-            "Id": "001i000000xxx"
-        }
-    ]
-}
+```php
+(
+    [totalSize] => 2
+    [done] => 1
+    [records] => Array
+        (
+            [0] => Array
+                (
+                    [attributes] => Array
+                        (
+                            [type] => Account
+                            [url] => /services/data/v48.0/sobjects/Account/0013I000004zuIXQAY
+                        )
+
+                    [Id] => 0013I000004zuIXQAY
+                )
+
+            [1] => Array
+                (
+                    [attributes] => Array
+                        (
+                            [type] => Account
+                            [url] => /services/data/v48.0/sobjects/Account/0013I000004zuIcQAI
+                        )
+                    [Id] => 0013I000004zuIcQAI
+                )
+        )
+)
 ```
-If you are querying more than 2000 records, you response will include:
-```JSON
-{
-    "nextRecordsUrl" : "/services/data/v20.0/query/01gD0000002HU6KIAW-2000"
-}
+If you are querying more than 2000 records, your response will include:
+```php
+(
+    [nextRecordsUrl] => /services/data/v20.0/query/01gD0000002HU6KIAW-2000
+)
 ```
 
 Simply, call `Forrest::next($nextRecordsUrl)` to return the next 2000 records.
@@ -224,7 +229,7 @@ Update a record with the PATCH method and if the external Id doesn't exist, it w
 ```php
 $externalId = 'XYZ1234';
 
-Forrest::sobjects('Account/External_Id__c/' + $externalId, [
+Forrest::sobjects('Account/External_Id__c/' . $externalId, [
     'method' => 'patch',
     'body'   => [
         'Name'  => 'Dunder Mifflin',
@@ -451,6 +456,27 @@ This package makes use of Guzzle's event listers
 Event::listen('forrest.response', function($request, $response) {
     dd((string) $response);
 });
+```
+
+### Creating multiple instances of Forrest
+There might be situations where you need to make calls to multiple Salesforce orgs. This can only be achieved only with the UserPassword flows.
+
+1. Set storage = `object` in the config file. This will store the token inside the object instance:
+```php
+'storage'=> [
+    'type' => 'object'
+],
+```
+
+2. Create a multiple instance with the laravel `app()->make()` helper function:
+```php
+$forrest1 = app()->make('forrest');
+$forrest1->setCredentials(['username' => 'user@email.com.org1', 'password'=> '1234']);
+$forrest1->authenticate();
+
+$forrest2 = app()->make('forrest');
+$forrest2->setCredentials(['username' => 'user@email.com.org2', 'password'=> '1234']);
+$forrest2->authenticate();
 ```
 
 For more information about Guzzle responses and event listeners, refer to their [documentation](http://guzzle.readthedocs.org).

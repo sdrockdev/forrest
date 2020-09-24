@@ -18,33 +18,36 @@ use Omniphx\Forrest\Interfaces\FormatterInterface;
 use Omniphx\Forrest\Interfaces\RepositoryInterface;
 use Omniphx\Forrest\Interfaces\ResourceRepositoryInterface;
 
+use Omniphx\Forrest\Formatters\JSONFormatter;
+use Omniphx\Forrest\Formatters\URLEncodedFormatter;
+use Omniphx\Forrest\Formatters\XMLFormatter;
+use Omniphx\Forrest\Formatters\BaseFormatter;
+
 /**
  * API resources.
  *
- * @method ClientInterface chatter(array $options = [])
- * @method ClientInterface tabs(array $options = [])
- * @method ClientInterface appMenu(array $options = [])
- * @method ClientInterface quickActions(array $options = [])
- * @method ClientInterface queryAll(array $options = [])
- * @method ClientInterface commerce(array $options = [])
- * @method ClientInterface wave(array $options = [])
- * @method ClientInterface exchange-connect(array $options = [])
- * @method ClientInterface analytics(array $options = [])
- * @method ClientInterface identity(array $options = [])
- * @method ClientInterface composite(array $options = [])
- * @method ClientInterface theme(array $options = [])
- * @method ClientInterface nouns(array $options = [])
- * @method ClientInterface recent(array $options = [])
- * @method ClientInterface licensing(array $options = [])
- * @method ClientInterface limits(array $options = [])
- * @method ClientInterface async-queries(array $options = [])
- * @method ClientInterface emailConnect(array $options = [])
- * @method ClientInterface compactLayouts(array $options = [])
- * @method ClientInterface flexiPage(array $options = [])
- * @method ClientInterface knowledgeManagement(array $options = [])
- * @method ClientInterface sobjects(array $options = [])
- * @method ClientInterface actions(array $options = [])
- * @method ClientInterface support(array $options = [])
+ * @method chatter(string $resource, array $options = [])
+ * @method tabs(string $resource, array $options = [])
+ * @method appMenu(string $resource, array $options = [])
+ * @method quickActions(string $resource, array $options = [])
+ * @method commerce(string $resource, array $options = [])
+ * @method wave(string $resource, array $options = [])
+ * @method exchange-connect(string $resource, array $options = [])
+ * @method analytics(string $resource, array $options = [])
+ * @method composite(string $resource, array $options = [])
+ * @method theme(string $resource, array $options = [])
+ * @method nouns(string $resource, array $options = [])
+ * @method recent(string $resource, array $options = [])
+ * @method licensing(string $resource, array $options = [])
+ * @method async-queries(string $resource, array $options = [])
+ * @method emailConnect(string $resource, array $options = [])
+ * @method compactLayouts(string $resource, array $options = [])
+ * @method flexiPage(string $resource, array $options = [])
+ * @method knowledgeManagement(string $resource, array $options = [])
+ * @method sobjects(string $resource, array $options = [])
+ * @method actions(string $resource, array $options = [])
+ * @method support(string $resource, array $options = [])
+ * @method authenticate()
  *
  * Note: Not all methods are available to certain orgs/licenses
  *
@@ -185,6 +188,10 @@ abstract class Client
         }
     }
 
+    public function setCredentials($credentials) {
+        $this->credentials = array_replace_recursive($this->credentials, $credentials);
+    }
+
     private function handleRequest()
     {
         if (isset($this->options['headers'])) {
@@ -192,11 +199,15 @@ abstract class Client
         } else {
             $this->parameters['headers'] = $this->formatter->setHeaders();
         }
-
+        
         if (isset($this->options['body'])) {
             $this->parameters['body'] = $this->_bodyParameter();
         } else {
             unset($this->parameters['body']);
+        }
+
+        if ($this->options['format'] !== $this->settings['defaults']['format']) { 
+            $this->setFormatter($this->options['format']);
         }
 
         try {
@@ -756,6 +767,22 @@ abstract class Client
         $this->storeConfiguredVersion($versions);
     }
 
+    /**
+     * Overrides the default formatter set during register.
+     *
+     * @param string $formatter - Name of the formatter to use
+     */
+    protected function setFormatter($formatter)
+    {
+        if ($formatter === 'json') {
+            $this->formatter = new JSONFormatter($this->tokenRepo, $this->settings);
+        } else if ($formatter === 'xml') {
+            $this->formatter = new XMLFormatter($this->tokenRepo, $this->settings);
+        } else if ($formatter === 'none') {
+            $this->formatter = new BaseFormatter($this->tokenRepo, $this->settings);
+        }
+    }
+
     private function storeConfiguredVersion($versions)
     {
         $configVersion = $this->settings['version'];
@@ -811,7 +838,8 @@ abstract class Client
         if ($ex->hasResponse() && 401 == $ex->getResponse()->getStatusCode()) {
             throw new TokenExpiredException('Salesforce token has expired', $ex);
         } elseif ($ex->hasResponse()) {
-            $error = json_decode($ex->getResponse()->getBody(), true);
+            $error = json_decode($ex->getResponse()->getBody()->getContents(), true);
+            $ex->getResponse()->getBody()->rewind();
             $jsonError = json_encode($error,JSON_PRETTY_PRINT);
             throw new SalesforceException($jsonError, $ex);
         } else {
