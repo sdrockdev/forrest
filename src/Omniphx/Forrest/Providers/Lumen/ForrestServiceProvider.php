@@ -6,6 +6,7 @@ use GuzzleHttp\Client;
 use Omniphx\Forrest\Providers\BaseServiceProvider;
 use Omniphx\Forrest\Providers\Lumen\LumenRedirect;
 use Omniphx\Forrest\Providers\Laravel\LaravelCache;
+use Omniphx\Forrest\Providers\ObjectStorage;
 
 class ForrestServiceProvider extends BaseServiceProvider
 {
@@ -29,8 +30,13 @@ class ForrestServiceProvider extends BaseServiceProvider
         return new LumenRedirect(redirect());
     }
 
-    protected function getStorage()
+    protected function getStorage($storageType)
     {
-        return new LumenCache(app('cache'), app('config'));
+        switch ($storageType) {
+            case 'object':
+                return new ObjectStorage();
+            default:
+                return new LumenCache(app('config'), app('request')->session());
+        }
     }
 }
