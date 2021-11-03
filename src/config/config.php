@@ -1,18 +1,19 @@
 <?php
 
 /**
- * Configuration options for Salesforce Oath settings and REST API defaults.
+ * Configuration options for Salesforce Oauth settings and REST API defaults.
  */
 return [
     /*
-     * Options include WebServer, UserPassword, and UserPasswordSoap
+     * Options include WebServer, UserPassword, UserPasswordSoap, and OAuthJWT
      */
-    'authentication' => 'WebServer',
+    'authentication' => env('SF_AUTH_METHOD', 'WebServer'),
 
     /*
      * Enter your credentials
      * Username and Password are only necessary for UserPassword & UserPasswordSoap flows.
      * Likewise, callbackURI is only necessary for WebServer flow.
+     * OAuthJWT requires a key, username, and private key (SF_CONSUMER_SECRET)
      */
     'credentials'    => [
         //Required:
@@ -25,6 +26,8 @@ return [
         'username'       => env('SF_USERNAME'),
         // Security token might need to be ammended to password unless IP Address is whitelisted
         'password'       => env('SF_PASSWORD'),
+        // Only required for OAuthJWT authentication:
+        'privateKey'     => '',
     ],
 
     /*
@@ -50,7 +53,7 @@ return [
         'compression'     => false,
         'compressionType' => 'gzip',
     ],
-    
+
     'client'    =>  [
         'http_errors' => true,
         'verify'    => false,

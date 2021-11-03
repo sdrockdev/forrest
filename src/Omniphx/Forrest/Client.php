@@ -184,6 +184,7 @@ abstract class Client
         } catch (TokenExpiredException $e) {
             $this->refresh();
 
+            $this->url = $url;
             return $this->handleRequest();
         }
     }
@@ -194,6 +195,12 @@ abstract class Client
 
     private function handleRequest()
     {
+        if (isset($this->options['format'])) {
+            $this->setFormatter($this->options['format']);
+        } else {
+            $this->setFormatter($this->settings['defaults']['format']);
+        }
+        
         if (isset($this->options['headers'])) {
             $this->parameters['headers'] = array_replace_recursive($this->formatter->setHeaders(), $this->options['headers']);
         } else {
@@ -205,9 +212,11 @@ abstract class Client
         } else {
             unset($this->parameters['body']);
         }
-
-        if ($this->options['format'] !== $this->settings['defaults']['format']) { 
-            $this->setFormatter($this->options['format']);
+        
+        if (isset($this->options['query'])) {
+            $this->parameters['query'] = http_build_query($this->options['query']);
+        } else {
+            unset($this->parameters['query']);
         }
 
         try {
@@ -684,6 +693,16 @@ abstract class Client
     }
 
     /**
+     * Accessor to get instance URL
+     *
+     * @return string
+     */
+    public function getInstanceURL()
+    {
+        return $this->instanceURLRepo->get();
+    }
+
+    /**
      * Returns any resource that is available to the authenticated
      * user. Reference Force.com's REST API guide to read about more
      * methods that can be called or refence them by calling the
@@ -743,7 +762,7 @@ abstract class Client
      */
     abstract public function revoke();
 
-    protected function getBaseUrl()
+    public function getBaseUrl()
     {
         $url = $this->instanceURLRepo->get();
         $url .= $this->versionRepo->get()['url'];
@@ -774,11 +793,11 @@ abstract class Client
      */
     protected function setFormatter($formatter)
     {
-        if ($formatter === 'json') {
+        if ($formatter === 'json' && strpos(get_class($this->formatter), 'JSONFormatter') === false) {
             $this->formatter = new JSONFormatter($this->tokenRepo, $this->settings);
-        } else if ($formatter === 'xml') {
+        } else if ($formatter === 'xml' && strpos(get_class($this->formatter), 'XMLFormatter') === false) {
             $this->formatter = new XMLFormatter($this->tokenRepo, $this->settings);
-        } else if ($formatter === 'none') {
+        } else if ($formatter === 'none' && strpos(get_class($this->formatter), 'BaseFormatter') === false) {
             $this->formatter = new BaseFormatter($this->tokenRepo, $this->settings);
         }
     }
@@ -836,6 +855,8 @@ abstract class Client
     private function assignExceptions(RequestException $ex)
     {
         if ($ex->hasResponse() && 401 == $ex->getResponse()->getStatusCode()) {
+            throw new TokenExpiredException('Salesforce token has expired', $ex);
+        } elseif ($ex->hasResponse() && 403 == $ex->getResponse()->getStatusCode() && 'Bad_OAuth_Token' == $ex->getResponse()->getBody()->getContents()) {
             throw new TokenExpiredException('Salesforce token has expired', $ex);
         } elseif ($ex->hasResponse()) {
             $error = json_decode($ex->getResponse()->getBody()->getContents(), true);
