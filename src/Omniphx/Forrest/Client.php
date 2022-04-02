@@ -219,6 +219,13 @@ abstract class Client
             unset($this->parameters['query']);
         }
 
+        // Added by Nick T to make sure custom apexrest requests are not asking for gzip
+        // because custom rest endpoints are not required to return gzip and it is causing problems
+        if ( strpos($this->url, 'services/apexrest') !== false ) {
+            unset( $this->parameters['headers']['Accept-Encoding'] );
+            unset( $this->parameters['headers']['Content-Encoding'] );
+        }
+
         try {
             $response = $this->httpClient->request($this->options['method'], $this->url, $this->parameters);
         } catch (RequestException $ex) {
