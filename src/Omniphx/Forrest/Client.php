@@ -224,6 +224,9 @@ abstract class Client
         if ( strpos($this->url, 'services/apexrest') !== false ) {
             unset( $this->parameters['headers']['Accept-Encoding'] );
             unset( $this->parameters['headers']['Content-Encoding'] );
+            if ( ! empty($this->parameters['body']) ) {
+                $this->parameters['body'] = gzdecode($this->parameters['body']); // lol hacky
+            }
         }
 
         try {
