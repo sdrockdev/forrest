@@ -10,6 +10,7 @@ use Omniphx\Forrest\Exceptions\SalesforceException;
 use Omniphx\Forrest\Exceptions\TokenExpiredException;
 use Omniphx\Forrest\Exceptions\MissingVersionException;
 
+use Omniphx\Forrest\Interfaces\AuthenticationInterface;
 use Omniphx\Forrest\Interfaces\EncryptorInterface;
 use Omniphx\Forrest\Interfaces\EventInterface;
 use Omniphx\Forrest\Interfaces\InputInterface;
@@ -22,38 +23,38 @@ use Omniphx\Forrest\Formatters\JSONFormatter;
 use Omniphx\Forrest\Formatters\URLEncodedFormatter;
 use Omniphx\Forrest\Formatters\XMLFormatter;
 use Omniphx\Forrest\Formatters\BaseFormatter;
+use Omniphx\Forrest\Formatters\CsvFormatter;
 
 /**
  * API resources.
  *
- * @method chatter(string $resource, array $options = [])
- * @method tabs(string $resource, array $options = [])
- * @method appMenu(string $resource, array $options = [])
- * @method quickActions(string $resource, array $options = [])
- * @method commerce(string $resource, array $options = [])
- * @method wave(string $resource, array $options = [])
- * @method exchange-connect(string $resource, array $options = [])
- * @method analytics(string $resource, array $options = [])
- * @method composite(string $resource, array $options = [])
- * @method theme(string $resource, array $options = [])
- * @method nouns(string $resource, array $options = [])
- * @method recent(string $resource, array $options = [])
- * @method licensing(string $resource, array $options = [])
- * @method async-queries(string $resource, array $options = [])
- * @method emailConnect(string $resource, array $options = [])
- * @method compactLayouts(string $resource, array $options = [])
- * @method flexiPage(string $resource, array $options = [])
- * @method knowledgeManagement(string $resource, array $options = [])
- * @method sobjects(string $resource, array $options = [])
- * @method actions(string $resource, array $options = [])
- * @method support(string $resource, array $options = [])
- * @method authenticate()
+ * @method string|array chatter(string $resource, array $options = [])
+ * @method string|array tabs(string $resource, array $options = [])
+ * @method string|array appMenu(string $resource, array $options = [])
+ * @method string|array quickActions(string $resource, array $options = [])
+ * @method string|array commerce(string $resource, array $options = [])
+ * @method string|array wave(string $resource, array $options = [])
+ * @method string|array exchange-connect(string $resource, array $options = [])
+ * @method string|array analytics(string $resource, array $options = [])
+ * @method string|array composite(string $resource, array $options = [])
+ * @method string|array theme(string $resource, array $options = [])
+ * @method string|array nouns(string $resource, array $options = [])
+ * @method string|array recent(string $resource, array $options = [])
+ * @method string|array licensing(string $resource, array $options = [])
+ * @method string|array async-queries(string $resource, array $options = [])
+ * @method string|array emailConnect(string $resource, array $options = [])
+ * @method string|array compactLayouts(string $resource, array $options = [])
+ * @method string|array flexiPage(string $resource, array $options = [])
+ * @method string|array knowledgeManagement(string $resource, array $options = [])
+ * @method string|array sobjects(string $resource, array $options = [])
+ * @method string|array actions(string $resource, array $options = [])
+ * @method string|array support(string $resource, array $options = [])
  *
  * Note: Not all methods are available to certain orgs/licenses
  *
  * search() and query() are not overloaded with the __call() method, this is because queries require urlencoding. I'm open to a more elegant solution, but prefer to leave it this way to make it simple to use.
  */
-abstract class Client
+abstract class Client implements AuthenticationInterface
 {
     /**
      * HTTP request client.
@@ -105,6 +106,9 @@ abstract class Client
      */
     protected $encryptor;
 
+    /**
+     * @var \Omniphx\Forrest\Interfaces\FormatterInterface
+     */
     protected $formatter;
 
     /**
@@ -172,7 +176,7 @@ abstract class Client
      * @param string $url
      * @param array  $options
      *
-     * @return mixed
+     * @return string|array
      */
     public function request($url, $options)
     {
@@ -700,7 +704,7 @@ abstract class Client
      * @param string $name
      * @param array  $arguments
      *
-     * @return array
+     * @return string|array
      */
     public function __call($name, $arguments)
     {
@@ -740,14 +744,14 @@ abstract class Client
     /**
      * Refresh authentication token.
      *
-     * @return mixed $response
+     * @return void
      */
     abstract public function refresh();
 
     /**
      * Revokes access token from Salesforce. Will not flush token from storage.
      *
-     * @return mixed
+     * @return \Psr\Http\Message\ResponseInterface|void
      */
     abstract public function revoke();
 
@@ -788,6 +792,8 @@ abstract class Client
             $this->formatter = new XMLFormatter($this->tokenRepo, $this->settings);
         } else if ($formatter === 'none' && strpos(get_class($this->formatter), 'BaseFormatter') === false) {
             $this->formatter = new BaseFormatter($this->tokenRepo, $this->settings);
+        } elseif ($formatter === 'csv' && strpos(get_class($this->formatter), 'CsvFormatter') === false) {
+            $this->formatter = new CsvFormatter($this->tokenRepo, $this->settings);
         }
     }
 
@@ -853,7 +859,7 @@ abstract class Client
             $jsonError = json_encode($error,JSON_PRETTY_PRINT);
             throw new SalesforceException($jsonError, $ex);
         } else {
-            throw new SalesforceException('Invalid request: %s', $ex);
+            throw new SalesforceException(sprintf('Invalid request: %s', $ex->getMessage()), $ex);
         }
     }
 }
