@@ -7,23 +7,23 @@ interface AuthenticationInterface
     /**
      * Begin authentication process.
      *
-     * @param string $url
+     * @param string|null $url
      *
-     * @return mixed
+     * @return \Illuminate\Http\RedirectResponse|void
      */
     public function authenticate($url);
 
     /**
      * Refresh authentication token.
      *
-     * @return mixed $response
+     * @return void
      */
     public function refresh();
 
     /**
      * Revokes authentication token.
      *
-     * @return mixed $response
+     * @return \Psr\Http\Message\ResponseInterface|void $response
      */
     public function revoke();
 }
