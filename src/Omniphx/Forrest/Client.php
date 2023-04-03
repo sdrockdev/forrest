@@ -222,6 +222,12 @@ abstract class Client implements AuthenticationInterface
         } else {
             unset($this->parameters['query']);
         }
+        
+        if (isset($this->options['json'])) {
+            $this->parameters['json'] = $this->options['json'];
+        } else {
+            unset($this->parameters['json']);
+        }
 
         // Added by Nick T to make sure custom apexrest requests are not asking for gzip
         // because custom rest endpoints are not required to return gzip and it is causing problems
@@ -714,6 +720,16 @@ abstract class Client implements AuthenticationInterface
     public function getInstanceURL()
     {
         return $this->instanceURLRepo->get();
+    }
+
+    /**
+     * Accessor to get the token object
+     *
+     * @return mixed
+     */
+    public function getToken()
+    {
+        return $this->tokenRepo->get();
     }
 
     /**
