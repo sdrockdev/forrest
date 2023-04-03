@@ -226,6 +226,12 @@ abstract class Client implements AuthenticationInterface
         } else {
             unset($this->parameters['query']);
         }
+        
+        if (isset($this->options['json'])) {
+            $this->parameters['json'] = $this->options['json'];
+        } else {
+            unset($this->parameters['json']);
+        }
 
         try {
             $response = $this->httpClient->request($this->options['method'], $this->url, $this->parameters);
@@ -693,6 +699,16 @@ abstract class Client implements AuthenticationInterface
     public function getInstanceURL()
     {
         return $this->instanceURLRepo->get();
+    }
+
+    /**
+     * Accessor to get the token object
+     *
+     * @return mixed
+     */
+    public function getToken()
+    {
+        return $this->tokenRepo->get();
     }
 
     /**
