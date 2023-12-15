@@ -70,6 +70,8 @@ abstract class Client implements AuthenticationInterface
      */
     protected $event;
 
+    protected $url;
+
     protected $resourceRepo;
 
     protected $stateRepo;
@@ -117,6 +119,12 @@ abstract class Client implements AuthenticationInterface
      * @var array
      */
     protected $credentials;
+
+    /** @var \Omniphx\Forrest\Interfaces\RepositoryInterface  */
+    protected $instanceURLRepo;
+
+    /** @var \Omniphx\Forrest\Interfaces\RepositoryInterface  */
+    protected $refreshTokenRepo;
 
     /**
      * Request options.
