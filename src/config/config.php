@@ -5,7 +5,7 @@
  */
 return [
     /*
-     * Options include WebServer, UserPassword, UserPasswordSoap, and OAuthJWT
+     * Options include WebServer, UserPassword, UserPasswordSoap, ClientCredentials and OAuthJWT
      */
     'authentication' => env('SF_AUTH_METHOD', 'WebServer'),
 
@@ -24,7 +24,7 @@ return [
 
         // Only required for UserPassword authentication:
         'username'       => env('SF_USERNAME'),
-        // Security token might need to be ammended to password unless IP Address is whitelisted
+        // Security token might need to be amended to password unless IP Address is whitelisted
         'password'       => env('SF_PASSWORD'),
         // Only required for OAuthJWT authentication:
         'privateKey'     => '',
@@ -78,7 +78,12 @@ return [
     'version' => '',
 
     /*
-     * Optional (and not recommended) if you need to override the instance_url returned from Saleforce
+     * Optional (and not recommended) if you need to override the instance_url returned from Salesforce
+     *
+     * This is useful for configuring lightning or lightning sandboxes with OAuthJWT:
+     * Lightning: https://<YOUR_ORG>.my.salesforce.com
+     * Lightning Sandbox: https://<YOUR_ORG>--<SANDBOX_NAME>.sandbox.my.salesforce.com
+     * Developer Org: https://<DEV_DOMAIN>.develop.my.salesforce.com
      */
     'instanceURL' => '',
 

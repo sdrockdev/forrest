@@ -46,7 +46,7 @@ use Omniphx\Forrest\Formatters\CsvFormatter;
  * @method string|array compactLayouts(string $resource, array $options = [])
  * @method string|array flexiPage(string $resource, array $options = [])
  * @method string|array knowledgeManagement(string $resource, array $options = [])
- * @method string|array sobjects(string $resource, array $options = [])
+ * @method string|array sobjects(string $resource = "", array $options = [])
  * @method string|array actions(string $resource, array $options = [])
  * @method string|array support(string $resource, array $options = [])
  *
@@ -69,6 +69,8 @@ abstract class Client implements AuthenticationInterface
      * @var Interfaces\EventInterface
      */
     protected $event;
+
+    protected $url;
 
     protected $resourceRepo;
 
@@ -117,6 +119,12 @@ abstract class Client implements AuthenticationInterface
      * @var array
      */
     protected $credentials;
+
+    /** @var \Omniphx\Forrest\Interfaces\RepositoryInterface  */
+    protected $instanceURLRepo;
+
+    /** @var \Omniphx\Forrest\Interfaces\RepositoryInterface  */
+    protected $refreshTokenRepo;
 
     /**
      * Request options.
@@ -204,13 +212,13 @@ abstract class Client implements AuthenticationInterface
         } else {
             $this->setFormatter($this->settings['defaults']['format']);
         }
-        
+
         if (isset($this->options['headers'])) {
             $this->parameters['headers'] = array_replace_recursive($this->formatter->setHeaders(), $this->options['headers']);
         } else {
             $this->parameters['headers'] = $this->formatter->setHeaders();
         }
-        
+
         if (isset($this->options['body'])) {
             if ($this->parameters['headers']['Content-Type'] == $this->formatter->getDefaultMIMEType()) {
                 $this->parameters['body'] = $this->formatter->setBody($this->options['body']);
@@ -220,13 +228,13 @@ abstract class Client implements AuthenticationInterface
         } else {
             unset($this->parameters['body']);
         }
-        
+
         if (isset($this->options['query'])) {
             $this->parameters['query'] = http_build_query($this->options['query']);
         } else {
             unset($this->parameters['query']);
         }
-        
+
         if (isset($this->options['json'])) {
             $this->parameters['json'] = $this->options['json'];
         } else {
