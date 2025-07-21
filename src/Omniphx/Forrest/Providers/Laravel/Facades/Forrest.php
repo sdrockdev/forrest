@@ -3,11 +3,13 @@
 namespace Omniphx\Forrest\Providers\Laravel\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * @method static \Illuminate\Http\RedirectResponse|void authenticate()
  * @method static void refresh()
  * @method static \Psr\Http\Message\ResponseInterface|void revoke()
+ * @method static bool hasToken()
  * @method static void setCredentials(array $credentials)
  * @method static string|array versions(array $options = [])
  * @method static string|array resources(array $options = [])
@@ -54,8 +56,10 @@ use Illuminate\Support\Facades\Facade;
  * @method static string|array sobjects(string $resource = "", array $options = [])
  * @method static string|array actions(string $resource, array $options = [])
  * @method static string|array support(string $resource, array $options = [])
+ * @method static ResponseInterface getAttachmentBody(string $id)
+ * @method static ResponseInterface getContentVersionBody(string $id)
  * @method static \Omniphx\Forrest\Interfaces\RedirectInterface callback()
-*/
+ */
 class Forrest extends Facade
 {
     /**
